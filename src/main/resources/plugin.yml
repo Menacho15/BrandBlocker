@@ -1,0 +1,10 @@
+name: BrandBlocker
+version: ${project.version}
+main: me.victorgamer15.brandblocker.BrandBlocker
+authors: [ VictorGamer15 ]
+description: Block any client brand easily.
+website: victorgamer15.ml
+api-version: 1.14
+commands:
+  brandblocker:
+    description: BrandBlocker main command.
