@@ -4,7 +4,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,12 +13,13 @@ import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Objects;
 
 public final class BrandBlocker extends JavaPlugin implements PluginMessageListener , Listener {
+
+    String prefix;
 
     @Override
     public void onEnable() {
@@ -35,19 +35,8 @@ public final class BrandBlocker extends JavaPlugin implements PluginMessageListe
             messenger.registerIncomingPluginChannel(this, "minecraft:brand", this);
             getLogger().info("Registered 1.13+ listener");
         }
-        FileConfiguration config = getConfig();
-        config.options().header("BrandBlocker by VictorGamer15\n\nTypes of mode:\nBlacklist: Kick players who are using this brand\nWhitelist: Kick players who are not using this brand\n\nIf you need some help, chat with me on the 'Discussion' tab of the plugin");
-        config.addDefault("enable", false);
-        config.addDefault("mode", "blacklist");
-        ArrayList<String> brands = new ArrayList<String>();
-        brands.add("lunarclient");
-        brands.add("badlion");
-        config.addDefault("blocked-brands", brands);
-        config.addDefault("kick-message", "&cThe client that you're using, is not permitted on our server.\n&cPlease use another client.");
-        config.addDefault("geyser-support", false);
-        config.addDefault("geyser-prefix", "*");
-        config.options().copyDefaults(true);
-        saveConfig();
+        prefix = ChatColor.translateAlternateColorCodes('&', getConfig().getString("prefix"));
+        saveDefaultConfig();
         Bukkit.getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -72,23 +61,23 @@ public final class BrandBlocker extends JavaPlugin implements PluginMessageListe
                 if (args[0].equalsIgnoreCase("check")) {
                     if (sender.hasPermission("brandblocker.usage")) {
                         if (!(args.length > 1)) {
-                            sender.sendMessage("§c§lBrandBlocker §c» §7You need to specify a §eplayer name §7to use this command.");
+                            sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("specify-player-name")));
                         } else {
                             if (player_brands.containsKey(args[1])) {
-                                sender.sendMessage("§c§lBrandBlocker §c» §e"+args[1]+"§7 entered to the server with the client brand §e"+player_brands.get(args[1]));
+                                sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-succesful")).replace("%player%", args[1]).replace("%brand%", player_brands.get(args[1])));
                             } else {
-                                sender.sendMessage("§c§lBrandBlocker §c» §7The player §e"+args[1]+" §7didn't send a client brand packet, or it isn't connected.");
+                                sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-failed")).replace("%player%", args[1]));
                             }
                         }
                     } else {
-                        sender.sendMessage("§c§lBrandBlocker §c» §7You need the permission §ebrandblocker.usage §7to use this command.");
+                        sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("no-permission")));
                     }
                 } else if (args[0].equalsIgnoreCase("reload")) {
                     if (sender.hasPermission("brandblocker.usage")) {
                         reloadConfig();
-                        sender.sendMessage("§c§lBrandBlocker §c» §7The main configuration file was §ereloaded§7.");
+                        sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("config-reload")));
                     } else {
-                        sender.sendMessage("§c§lBrandBlocker §c» §7You need the permission §ebrandblocker.usage §7to use this command.");
+                        sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("no-permission")));
                     }
                 }
             }
@@ -97,7 +86,7 @@ public final class BrandBlocker extends JavaPlugin implements PluginMessageListe
         return false;
     }
 
-    HashMap<String, String> player_brands = new HashMap<String, String>();
+    HashMap<String, String> player_brands = new HashMap<>();
 
     @Override
     public void onPluginMessageReceived(String channel, Player p, byte[] msg) {
@@ -110,10 +99,11 @@ public final class BrandBlocker extends JavaPlugin implements PluginMessageListe
             while (iterator.hasNext()) {
                 String str = iterator.next();
                 if (brand.toLowerCase().contains(str.toLowerCase())) {
+                    if(p.hasPermission("brandblocker.bypass")) return;
                     String kickMsg = getConfig().getString("kick-message");
                     assert kickMsg != null;
                     p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
-                    getLogger().info(p.getName() + " was kicked for using " + brand);
+                    getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
                     return;
                 }
             }
@@ -124,10 +114,11 @@ public final class BrandBlocker extends JavaPlugin implements PluginMessageListe
                 if (brand.toLowerCase().contains(str.toLowerCase()))
                     return;
             }
+            if(p.hasPermission("brandblocker.bypass")) return;
             String kickMsg = getConfig().getString("kick-message");
             assert kickMsg != null;
             p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
-            getLogger().info(p.getName() + " was kicked for using " + brand);
+            getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
             return;
         }
     }

@@ -1,0 +1,36 @@
+# BrandBlocker by VictorGamer15
+#
+# Mode types:
+# Blacklist: Kick players which have the brand on the brand list below
+# Whitelist: Only allow players which have the brand on the brand list below
+#
+# If you need some help, chat with me on the 'Discussion' tab of the plugin
+
+# Enable the functionality of BrandBlocker
+# Users with the permission brandblocker.bypass will not have any restrictions with brands on joining
+enable: false
+
+# BrandBlocker mode
+mode: blacklist
+
+# List of brands to whitelist or block
+blocked-brands:
+  - lunarclient
+  - badlion
+
+# Geyser Support
+geyser-support: false
+geyser-prefix: "*"
+
+# Plugin messages
+prefix: "&c&lBrandBlocker &c» "
+no-permission: "&7You need the permission &ebrandblocker.usage &7to use this command."
+specify-player-name: "&7You need to specify a &eplayer name &7to use this command."
+check-succesful: "&e%player% &7entered to the server with the client brand &e%brand%&7."
+check-failed: "&7The player &e%player% &7didn't send a client brand packet, or it isn't connected."
+config-reload: "&7The main configuration file was &ereloaded&7."
+console-log: "%player% was kicked for using %brand%."
+
+kick-message: |-
+  &cThe client that you're using, is not permitted on our server.
+  &cPlease use another client.
