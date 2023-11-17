@@ -6,7 +6,7 @@
 
     <groupId>me.victorgamer15</groupId>
     <artifactId>BrandBlocker</artifactId>
-    <version>1.5</version>
+    <version>1.6</version>
     <packaging>jar</packaging>
 
     <name>BrandBlocker</name>
