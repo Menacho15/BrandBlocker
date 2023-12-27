@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -102,7 +103,11 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
                     if (str.equalsIgnoreCase(brand)) {
                         if(p.hasPermission("brandblocker.bypass")) return;
                         String kickMsg = getConfig().getString("kick-message");
-                        p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
+                        Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+                            public void run() {
+                                p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
+                            }
+                        }, 5L);
                         getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
                         return;
                     }
@@ -116,7 +121,11 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
                 }
                 if(p.hasPermission("brandblocker.bypass")) return;
                 String kickMsg = getConfig().getString("kick-message");
-                p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
+                Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+                    public void run() {
+                        p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
+                    }
+                }, 5L);
                 getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
                 break;
         }
