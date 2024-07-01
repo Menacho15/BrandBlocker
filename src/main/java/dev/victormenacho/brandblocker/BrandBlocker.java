@@ -1,4 +1,4 @@
-package me.victorgamer15.brandblocker;
+package dev.victormenacho.brandblocker;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -7,6 +7,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -45,13 +46,51 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
         player_brands.remove(e.getPlayer().getName());
     }
 
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        final Player p = e.getPlayer();
+
+        if (!getConfig().getBoolean("enable")) return;
+        if (getConfig().getBoolean("geyser-support") && p.getName().contains(Objects.requireNonNull(getConfig().getString("geyser-prefix")))) return;
+        if (!player_brands.containsKey(p.getName())) return;
+
+        final String brand = player_brands.get(p.getName());
+        final Iterator<String> iterator = getConfig().getStringList("blocked-brands").iterator();
+
+        switch (getConfig().getString("mode")) {
+            case "blacklist":
+                while (iterator.hasNext()) {
+                    String str = iterator.next();
+                    if (brand.contains(str)) {
+                        if(p.hasPermission("brandblocker.bypass")) return;
+                        String kickCmd = getConfig().getString("kick-command");
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), kickCmd.replace("%player%", p.getName()).replace("%brand%", brand));
+                        getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
+                        return;
+                    }
+                }
+                break;
+            case "whitelist":
+                while (iterator.hasNext()) {
+                    String str = iterator.next();
+                    if (brand.contains(str))
+                        return;
+                }
+                if(p.hasPermission("brandblocker.bypass")) return;
+                String kickCmd = getConfig().getString("kick-command");
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), kickCmd.replace("%player%", p.getName()).replace("%brand%", brand));
+                getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
+                break;
+        }
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (label.equalsIgnoreCase("brandblocker")) {
             if (args.length == 0) {
                 sender.sendMessage("§4§m--------------------------");
                 sender.sendMessage("§c§lBrandBlocker §7v"+this.getDescription().getVersion());
-                sender.sendMessage("§7by VictorGamer15");
+                sender.sendMessage("§7by Menacho");
                 sender.sendMessage("§7");
                 sender.sendMessage("§cUsage §4»");
                 sender.sendMessage("§c§l● check §7(player)");
@@ -90,45 +129,7 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
     @Override
     public void onPluginMessageReceived(String channel, Player p, byte[] msg) {
         final String brand = new String(msg, StandardCharsets.UTF_8).substring(1);
-        final Iterator<String> iterator = getConfig().getStringList("blocked-brands").iterator();
-
         player_brands.put(p.getName(), brand);
-        if (!getConfig().getBoolean("enable")) return;
-        if (getConfig().getBoolean("geyser-support") && p.getName().contains(Objects.requireNonNull(getConfig().getString("geyser-prefix")))) return;
-
-        switch (getConfig().getString("mode")) {
-            case "blacklist":
-                while (iterator.hasNext()) {
-                    String str = iterator.next();
-                    if (str.equalsIgnoreCase(brand)) {
-                        if(p.hasPermission("brandblocker.bypass")) return;
-                        String kickMsg = getConfig().getString("kick-message");
-                        Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-                            public void run() {
-                                p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
-                            }
-                        }, 5L);
-                        getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
-                        return;
-                    }
-                }
-                break;
-            case "whitelist":
-                while (iterator.hasNext()) {
-                    String str = iterator.next();
-                    if (str.equalsIgnoreCase(brand))
-                        return;
-                }
-                if(p.hasPermission("brandblocker.bypass")) return;
-                String kickMsg = getConfig().getString("kick-message");
-                Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-                    public void run() {
-                        p.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickMsg));
-                    }
-                }, 5L);
-                getLogger().info(getConfig().getString("console-log").replace("%player%", p.getName()).replace("%brand%", brand));
-                break;
-        }
     }
 
     @Override

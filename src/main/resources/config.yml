@@ -1,4 +1,4 @@
-# BrandBlocker by VictorGamer15
+# BrandBlocker by Menacho
 #
 # Mode types:
 # Blacklist: Kick players which have the brand on the brand list below
@@ -31,6 +31,4 @@ check-failed: "&7The player &e%player% &7didn't send a client brand packet, or i
 config-reload: "&7The main configuration file was &ereloaded&7."
 console-log: "%player% was kicked for using %brand%."
 
-kick-message: |-
-  &cThe client that you're using, is not permitted on our server.
-  &cPlease use another client.
+kick-command: kick %player% §cThe client that you're using, is not permitted on our server.
