@@ -8,42 +8,21 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.lang.reflect.Field;
 import java.util.Iterator;
 import java.util.Objects;
 
-public class BrandBlocker extends JavaPlugin implements PluginMessageListener, Listener {
+public class BrandBlocker extends JavaPlugin implements Listener {
 
     public String prefix;
-    public final String version = Bukkit.getBukkitVersion().split("-")[0].split("\\.")[1];
-    public HashMap<String, String> player_brands = new HashMap<>();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         prefix = ChatColor.translateAlternateColorCodes('&', getConfig().getString("prefix"));
-        getLogger().info("Server running version 1."+version);
-
-        if (Integer.parseInt(version) < 13) {
-            Bukkit.getMessenger().registerIncomingPluginChannel(this, "MC|Brand", this);
-            getLogger().info("Registered 1.12- listener");
-        } else {
-            Bukkit.getMessenger().registerIncomingPluginChannel(this, "minecraft:brand", this);
-            getLogger().info("Registered 1.13+ listener");
-        }
-
         Bukkit.getServer().getPluginManager().registerEvents(this, this);
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        player_brands.remove(e.getPlayer().getName());
     }
 
     @EventHandler
@@ -52,9 +31,8 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
 
         if (!getConfig().getBoolean("enable")) return;
         if (getConfig().getBoolean("geyser-support") && p.getName().contains(Objects.requireNonNull(getConfig().getString("geyser-prefix")))) return;
-        if (!player_brands.containsKey(p.getName())) return;
 
-        final String brand = player_brands.get(p.getName());
+        final String brand = getClientBrand(p);
         final Iterator<String> iterator = getConfig().getStringList("blocked-brands").iterator();
 
         switch (getConfig().getString("mode")) {
@@ -102,10 +80,17 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
                         if (!(args.length > 1)) {
                             sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("specify-player-name")));
                         } else {
-                            if (player_brands.containsKey(args[1])) {
-                                sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-succesful")).replace("%player%", args[1]).replace("%brand%", player_brands.get(args[1])));
-                            } else {
+                            final Player specifiedPlayer = Bukkit.getPlayer(args[1]);
+
+                            if (specifiedPlayer == null) {
                                 sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-failed")).replace("%player%", args[1]));
+                            } else {
+                                final String brand = getClientBrand(specifiedPlayer);
+                                if (brand.equalsIgnoreCase("unknown")) {
+                                    sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-failed")).replace("%player%", args[1]));
+                                } else {
+                                    sender.sendMessage(prefix+ChatColor.translateAlternateColorCodes('&', getConfig().getString("check-succesful")).replace("%player%", args[1]).replace("%brand%", brand));
+                                }
                             }
                         }
                     } else {
@@ -126,16 +111,77 @@ public class BrandBlocker extends JavaPlugin implements PluginMessageListener, L
         return false;
     }
 
-    @Override
-    public void onPluginMessageReceived(String channel, Player p, byte[] msg) {
-        final String brand = new String(msg, StandardCharsets.UTF_8).substring(1);
-        player_brands.put(p.getName(), brand);
-    }
+    private String getClientBrand(Player player) {
+        try {
+            final String[] possibleFieldNames = new String[]{"clientBrand", "clientBrandName", "brand"};
+            try {
+                String brand = (String) player.getClass().getMethod("getClientBrandName").invoke((Object)player, new Object[0]);
+                if (brand != null && !brand.isEmpty()) {
+                    return brand;
+                }
+            }
+            catch (Exception ignored) {}
 
-    @Override
-    public void onDisable() {
-        // Plugin shutdown logic
-        player_brands.clear();
-    }
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            for (String fieldName : possibleFieldNames) {
+                try {
+                    Field brandField = handle.getClass().getDeclaredField(fieldName);
+                    brandField.setAccessible(true);
+                    Object brandValue = brandField.get(handle);
+                    if (!(brandValue instanceof String) || ((String)brandValue).isEmpty()) continue;
+                    return (String)brandValue;
+                }
+                catch (NoSuchFieldException ignored) {}
+            }
 
+            try {
+                Field connectionField = handle.getClass().getDeclaredField("connection");
+                connectionField.setAccessible(true);
+                Object connection = connectionField.get(handle);
+
+                Field brandField = connection.getClass().getDeclaredField("clientBrand");
+                brandField.setAccessible(true);
+                Object brandValue = brandField.get(connection);
+
+                if (brandValue instanceof String && !((String) brandValue).isEmpty()) {
+                    return (String) brandValue;
+                }
+            }
+            catch (Exception ignored) {}
+
+            try {
+                final String[] methods = new String[]{"getClientBrand", "getClientBrandName"};
+                String version = this.getServer().getClass().getPackage().getName().replace(".", ",").split(",")[3];
+                Class<?> craftPlayerClass = Class.forName("org.bukkit.craftbukkit." + version + ".entity.CraftPlayer");
+                Object craftPlayer = craftPlayerClass.cast(player);
+                Object entityPlayer = craftPlayerClass.getMethod("getHandle").invoke(craftPlayer);
+                for (String methodName : methods) {
+                    try {
+                        Object brand = entityPlayer.getClass().getMethod(methodName).invoke(entityPlayer);
+                        if (!(brand instanceof String) || ((String)brand).isEmpty()) continue;
+                        return (String)brand;
+                    }
+                    catch (Exception ignored) {}
+                }
+                for (String fieldName : possibleFieldNames) {
+                    try {
+                        Field brandField = entityPlayer.getClass().getDeclaredField(fieldName);
+                        brandField.setAccessible(true);
+                        Object brandValue = brandField.get(entityPlayer);
+                        if (!(brandValue instanceof String) || ((String)brandValue).isEmpty()) continue;
+                        return (String)brandValue;
+                    }
+                    catch (Exception ignored) {}
+                }
+            }
+            catch (Exception ex) {
+                this.getLogger().warning("Failed to detect client brand for " + player.getName() + ": " + ex.getMessage());
+            }
+            return "vanilla";
+        }
+        catch (Exception e) {
+            this.getLogger().warning("Error detecting client brand for " + player.getName() + ": " + e.getMessage());
+            return "unknown";
+        }
+    }
 }
